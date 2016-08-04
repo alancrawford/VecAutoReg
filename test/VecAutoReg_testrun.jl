@@ -1,7 +1,6 @@
 #= Test for VAR code - using Stata var example =#
 
-cd("./Git/VecAutoReg/")
-lutdata = readtable("./testdata/lutkepohl12.csv");
+lutdata = readtable("./Git/VecAutoReg/testdata/lutkepohl12.csv");
 constant_term = true; # Set Constant term
 
 #= ************** Call VAR from Array ************** =#

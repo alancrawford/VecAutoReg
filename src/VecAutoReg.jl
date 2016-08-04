@@ -1,7 +1,10 @@
 module VecAutoReg
 
-using DataFrames, DataArrays, GLM
+using DataFrames, DataArrays, GLM, Distributions
 import Base.show
+
+typealias ArrayorDF  Union{Matrix{Float64},DataFrame}
+
 
 include("varest.jl")
 
