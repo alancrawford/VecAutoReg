@@ -13,7 +13,7 @@ type VarReg
 	se			:: Matrix{Float64}		# Standard Errors	
 	err_dist	:: Distributions.MvNormal 	# Fitted dist of residuals
 
-	function VarReg(X::Matrix{Float64}, p::Int64,consterm::Bool=true; varname::ASCIIString="x")
+	function VarReg(X::Matrix{Float64}, p::Int64,consterm::Bool=true; varname::String="x")
 		#= Setup =#
 		(T,N) = size(X)
 		is(consterm,true) ? 
