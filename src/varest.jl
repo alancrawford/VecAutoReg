@@ -39,7 +39,7 @@ type VarReg
 			se = reshape(sqrt(diag(CovBhat)),N,N*p)'
 
 		# Because no Data Frame create series names
-		eqnames = [symbol(varname*"$i") for i in 1:N]
+		eqnames = [Symbol(varname*"$i") for i in 1:N]
 		err_dist = MvNormal(zeros(N),SigmaU)
 	
 		new(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se, err_dist)
