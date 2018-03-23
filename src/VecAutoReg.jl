@@ -3,9 +3,6 @@ module VecAutoReg
 using DataFrames, DataArrays, GLM, Distributions
 import Base.show
 
-typealias ArrayorDF  Union{Matrix{Float64},DataFrame}
-
-
 include("varest.jl")
 
 export 	readtable,	# Export this Data Frames Command to be able to load in data from REPL

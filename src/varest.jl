@@ -1,10 +1,10 @@
 #= VAR code =#
 
-type VarReg
+mutable struct VarReg{T}
 	T			:: Int64				# Number of time series observations
 	N 			:: Int64 				# Number of series
 	lags 		:: Int64 				# Number of lags
-	X 			:: ArrayorDF 			# Data 
+	X 			:: T 					# Data 
 	eqnames 	:: Vector{Symbol}		# Variable names
 	consterm	:: Bool					# Boolean for inclusion of a constant term
 	Bhat 		:: Matrix{Float64}		# Estimates of parameters
@@ -12,77 +12,78 @@ type VarReg
 	CovBhat		:: Matrix{Float64} 		# Covariance Matrix of Bhat
 	se			:: Matrix{Float64}		# Standard Errors	
 	err_dist	:: Distributions.MvNormal 	# Fitted dist of residuals
+end
 
-	function VarReg(X::Matrix{Float64}, p::Int64,consterm::Bool=true; varname::String="x")
-		#= Setup =#
-		(T,N) = size(X)
-		is(consterm,true) ? 
-			@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
-			@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
-		Y = X[p+1:T,:]
-		Z = hcat(ones(T-p), zeros(T-p,N*p))
-		for q = 1:p
-			Z[:,N*(q-1)+2:N*q+1] = X[p-q+1:end-q,:] 
-		end
-		is(consterm,true) ? nothing :	Z = Z[:,2:end]  # Omit column of ones if constermtant is false
-
-		#= Estimation =#
-		Ttilde = T-p
-		invZZ = inv(Z'*Z)
-		Bhat = Z\Y
-		Uhat = Y - Z*Bhat
-		SigmaU = Uhat'*Uhat/Ttilde
-		Gamma = Z'*Z/Ttilde
-		CovBhat = kron(invZZ,SigmaU)
-		is(consterm,true) ?
-			se = reshape(sqrt(diag(CovBhat)),N,N*p+1)' :
-			se = reshape(sqrt(diag(CovBhat)),N,N*p)'
-
-		# Because no Data Frame create series names
-		eqnames = [Symbol(varname*"$i") for i in 1:N]
-		err_dist = MvNormal(zeros(N),SigmaU)
-	
-		new(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se, err_dist)
+function VarReg(X::Matrix{Float64}, p::Int64,consterm::Bool=true; varname::String="x")
+	#= Setup =#
+	(T,N) = size(X)
+	is(consterm,true) ? 
+		@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
+		@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
+	Y = X[p+1:T,:]
+	Z = hcat(ones(T-p), zeros(T-p,N*p))
+	for q = 1:p
+		Z[:,N*(q-1)+2:N*q+1] = X[p-q+1:end-q,:] 
 	end
+	is(consterm,true) ? nothing :	Z = Z[:,2:end]  # Omit column of ones if constermtant is false
 
-	function VarReg(df::DataFrame, p::Int64,  eqvars::Vector{Symbol}, consterm::Bool=true)
-		#= Setup =#
-		X = df[:,eqvars]
-		(T,N) = size(X)
-		is(consterm,true) ? 
-			@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
-			@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
-		ctr = 1
-		Y = Array(Float64,T-p,N)
-		for i in 1:N
-			Y[:,ctr] = X[eqvars[ctr]][p+1:end]
-			ctr +=1
-		end
-		Z = [ones(T-p) zeros(T-p,N*p)]
-		ctr = 1
-		for q = 1:p
-			for i in 1:length(eqvars)
-				ctr += 1
-				Z[:,ctr] = X[eqvars[i]][p-q+1:end-q] 
-			end
-		end
-		is(consterm,true) ? nothing :	Z = Z[:,2:end]  # Omit column of ones if constant is false
+	#= Estimation =#
+	Ttilde = T-p
+	invZZ = inv(Z'*Z)
+	Bhat = Z\Y
+	Uhat = Y - Z*Bhat
+	SigmaU = Uhat'*Uhat/Ttilde
+	Gamma = Z'*Z/Ttilde
+	CovBhat = kron(invZZ,SigmaU)
+	is(consterm,true) ?
+		se = reshape(sqrt(diag(CovBhat)),N,N*p+1)' :
+		se = reshape(sqrt(diag(CovBhat)),N,N*p)'
 
-		#= Estimation =#
-		Ttilde = T-p
-		invZZ = inv(Z'*Z)
-		Bhat = Z\Y
-		Uhat = Y - Z*Bhat
-		SigmaU = Uhat'*Uhat/Ttilde
-		Gamma = Z'*Z/Ttilde
-		CovBhat = kron(invZZ,SigmaU)
-		is(consterm,true) ?
-			se = reshape(sqrt(diag(CovBhat)),N,N*p+1)' :
-			se = reshape(sqrt(diag(CovBhat)),N,N*p)'
-	
-		new(T, N, p, X, eqvars , consterm, Bhat, SigmaU, CovBhat, se)
+	# Because no Data Frame create series names
+	eqnames = [Symbol(varname*"$i") for i in 1:N]
+	err_dist = MvNormal(zeros(N),SigmaU)
+
+	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se, err_dist)
+end
+
+
+function VarReg(df::DataFrame, p::Int64,  eqvars::Vector{Symbol}, consterm::Bool=true)
+	#= Setup =#
+	X = df[:,eqvars]
+	(T,N) = size(X)
+	is(consterm,true) ? 
+		@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
+		@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
+	ctr = 1
+	Y = Array(Float64,T-p,N)
+	for i in 1:N
+		Y[:,ctr] = X[eqvars[ctr]][p+1:end]
+		ctr +=1
 	end
+	Z = [ones(T-p) zeros(T-p,N*p)]
+	ctr = 1
+	for q = 1:p
+		for i in 1:length(eqvars)
+			ctr += 1
+			Z[:,ctr] = X[eqvars[i]][p-q+1:end-q] 
+		end
+	end
+	is(consterm,true) ? nothing :	Z = Z[:,2:end]  # Omit column of ones if constant is false
 
+	#= Estimation =#
+	Ttilde = T-p
+	invZZ = inv(Z'*Z)
+	Bhat = Z\Y
+	Uhat = Y - Z*Bhat
+	SigmaU = Uhat'*Uhat/Ttilde
+	Gamma = Z'*Z/Ttilde
+	CovBhat = kron(invZZ,SigmaU)
+	is(consterm,true) ?
+		se = reshape(sqrt(diag(CovBhat)),N,N*p+1)' :
+		se = reshape(sqrt(diag(CovBhat)),N,N*p)'
+	err_dist = MvNormal(zeros(N),SigmaU)
+
+	return VarReg(T, N, p, X, eqvars , consterm, Bhat, SigmaU, CovBhat, se, err_dist)
 end
 
 function show(io::IO, vrp::VarReg)
