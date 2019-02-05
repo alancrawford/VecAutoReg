@@ -1,6 +1,6 @@
 #= Test for VAR code - using Stata var example =#
-
-lutdata = readtable("./Git/VecAutoReg/testdata/lutkepohl12.csv");
+using VecAutoReg, CSVFiles, DataFrames
+lutdata = DataFrame(load("./Git/VecAutoReg/testdata/lutkepohl12.csv"));
 constant_term = true; # Set Constant term
 
 #= ************** Call VAR from Array ************** =#
