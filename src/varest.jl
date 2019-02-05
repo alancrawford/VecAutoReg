@@ -10,7 +10,7 @@ mutable struct VarReg{T}
 	Bhat 		:: Matrix{Float64}		# Estimates of parameters
 	SigmaU		:: Matrix{Float64} 		# Covariance Matrix 
 	CovBhat		:: Matrix{Float64} 		# Covariance Matrix of Bhat
-	se			:: Transpose{Float64}		# Standard Errors	
+	se			:: Matrix{Float64}		# Standard Errors	
 end
 
 function VarReg(X::Matrix{Float64}, p::Int64, consterm::Bool=true; varname::String="x")
@@ -42,7 +42,7 @@ function VarReg(X::Matrix{Float64}, p::Int64, consterm::Bool=true; varname::Stri
 	eqnames = [Symbol(varname*"$i") for i in 1:N]
 	err_dist = MvNormal(zeros(N),SigmaU)
 	
-	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se, err_dist)
+	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se)
 end
 
 
@@ -121,7 +121,8 @@ function VarOutput( vrp :: VarReg)
 end
 
 function VarStable(vrp::VarReg)
-	A = [vrp.Bhat[2:end,:]'; [eye(vrp.N*(vrp.lags-1)) zeros(vrp.N*(vrp.lags-1),vrp.N)]]
+	m = vrp.N*(vrp.lags-1)
+	A = [vrp.Bhat[2:end,:]'; [Matrix(1.0I, m, m) zeros(m,vrp.N)]]
 	MaxModEigVal = abs.(eigvals(A))[1];
 	EigOut = round.(MaxModEigVal,digits=4)
 	<(MaxModEigVal,1.0) ?
@@ -161,9 +162,9 @@ function VarOptLags( X::Matrix{Float64} , Pmax::Int64, consterm::Bool=true)
 end
 
 function VarOptLags(X::DataFrame, Pmax::Int64,  eqvars::Vector{Symbol}, consterm::Bool=true)
-	soc = Array{Float64}(Pmax,3)
+	soc = Array{Float64}(undef, Pmax,3)
 	for q in 1:Pmax
-		soc[q,:] = VarSoc(VarReg(X, q, consterm, eqvars))
+		soc[q,:] = VarSoc(VarReg(X, q, eqvars, consterm))
 	end
 	MinCrit = zeros(Float64,3)
 	for j in 1:3

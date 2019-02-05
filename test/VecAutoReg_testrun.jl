@@ -1,5 +1,6 @@
 #= Test for VAR code - using Stata var example =#
-using VecAutoReg, CSVFiles, DataFrames
+using VecAutoReg, CSVFiles, DataFrames, StatsBase
+cd(ENV["HOME"])
 lutdata = DataFrame(load("./Git/VecAutoReg/testdata/lutkepohl12.csv"));
 constant_term = true; # Set Constant term
 
