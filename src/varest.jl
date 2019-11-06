@@ -1,7 +1,7 @@
 #= VAR code =#
 
 mutable struct VarReg{T}
-	T			:: Int64				# Number of time series observations
+	NumObs		:: Int64				# Number of time series observations
 	N 			:: Int64 				# Number of series
 	lags 		:: Int64 				# Number of lags
 	X 			:: T 					# Data 
@@ -11,7 +11,6 @@ mutable struct VarReg{T}
 	SigmaU		:: Matrix{Float64} 		# Covariance Matrix 
 	CovBhat		:: Matrix{Float64} 		# Covariance Matrix of Bhat
 	se			:: Matrix{Float64}		# Standard Errors	
-	err_dist	:: Distributions.MvNormal 	# Fitted dist of residuals
 end
 
 function VarReg(X::Matrix{Float64}, p::Int64, consterm::Bool=true; varname::String="x")
@@ -21,7 +20,7 @@ function VarReg(X::Matrix{Float64}, p::Int64, consterm::Bool=true; varname::Stri
 		@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
 		@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
 	Y = X[p+1:T,:]
-	Z = hcat(ones(T-p), zeros(T-p,N*p))
+	Z = [ones(T-p) zeros(T-p,N*p)]
 	for q = 1:p
 		Z[:,N*(q-1)+2:N*q+1] = X[p-q+1:end-q,:] 
 	end
@@ -43,7 +42,7 @@ function VarReg(X::Matrix{Float64}, p::Int64, consterm::Bool=true; varname::Stri
 	eqnames = [Symbol(varname*"$i") for i in 1:N]
 	err_dist = MvNormal(zeros(N),SigmaU)
 	
-	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se, err_dist)
+	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se)
 end
 
 
@@ -55,7 +54,7 @@ function VarReg(df::DataFrame, p::Int64,  eqvars::Vector{Symbol}, consterm::Bool
 		@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
 		@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
 	ctr = 1
-	Y = Array(Float64,T-p,N)
+	Y = Array{Float64}(undef,T-p,N)
 	for i in 1:N
 		Y[:,ctr] = X[eqvars[ctr]][p+1:end]
 		ctr +=1
@@ -75,7 +74,7 @@ function VarReg(df::DataFrame, p::Int64,  eqvars::Vector{Symbol}, consterm::Bool
 	Ttilde = T-p
 	invZZ = inv(Z'*Z)
 	Bhat = Z\Y
-	Uhat = Y - Z*Bhat
+	Uhat = Y .- Z*Bhat
 	SigmaU = Uhat'*Uhat/Ttilde
 	G = Z'*Z/Ttilde
 	CovBhat = kron(invZZ,SigmaU)
@@ -84,22 +83,22 @@ function VarReg(df::DataFrame, p::Int64,  eqvars::Vector{Symbol}, consterm::Bool
 		convert(Matrix,transpose(reshape(sqrt.(diag(CovBhat)),N,N*p)))
 	err_dist = MvNormal(zeros(N),SigmaU)
 
-	return VarReg(T, N, p, X, eqvars , consterm, Bhat, SigmaU, CovBhat, se, err_dist)
+	return VarReg(T, N, p, X, eqvars , consterm, Bhat, SigmaU, CovBhat, se)
 end
 
 function show(io::IO, vrp::VarReg)
 	msg = "Ran VAR with:\n"
-	msg *= "\t- $(vrp.T) time periods\n "
+	msg *= "\t- $(vrp.NumObs) time periods\n "
 	msg *= "\t- $(vrp.N) series\n "
 	msg *= "\t- $(vrp.lags) lags\n "
 	msg *= "\t- Constant Term: $(vrp.consterm)\n"
-	msg *= "\t- NumObs used in estimation = $((vrp.T-vrp.lags)*vrp.N)\n"
+	msg *= "\t- NumObs used in estimation = $((vrp.NumObs-vrp.lags)*vrp.N)\n"
 	print(io,msg)
 end
 
 function VarOutput( vrp :: VarReg)
 	pK2 = vrp.lags*vrp.N*vrp.N
-	model_df = vrp.T*vrp.N-pK2-vrp.N
+	model_df = vrp.NumObs*vrp.N-pK2-vrp.N
 	zstat = vrp.Bhat./vrp.se
 	pval = ccdf.(FDist(1,model_df),abs2.(zstat))
 	ci_low = vrp.Bhat - 1.96vrp.se
@@ -116,6 +115,7 @@ function VarOutput( vrp :: VarReg)
 	for w in 1:vrp.N
 		println("\n ** Eq: $(vrp.eqnames[w]) **\n")
 		regout = round.([vrp.Bhat[:,w] vrp.se[:,w] zstat[:,w] pval[:,w] ci_low[:,w] ci_high[:,w]],digits=4)
+
 		show(CoefTable(regout, ColNames,  RowNames))
 	end
 end
@@ -138,7 +138,12 @@ function Stable(vrp::VarReg)
 end
 
 function VarStable(vrp::VarReg)
+<<<<<<< HEAD
 	A = GetSS_A(vrp)
+=======
+	m = vrp.N*(vrp.lags-1)
+	A = [vrp.Bhat[2:end,:]'; [Matrix(1.0I, m, m) zeros(m,vrp.N)]]
+>>>>>>> 2a6302751c36140a14836e45654bbd2fe0383b99
 	MaxModEigVal = abs.(eigvals(A))[1];
 	EigOut = round.(MaxModEigVal,digits=4)
 	<(MaxModEigVal,1.0) ?
@@ -148,7 +153,7 @@ end
 
 function VarSoc(vrp::VarReg)
 	pK2 = vrp.lags*vrp.N*vrp.N
-	Ttilde = vrp.T - vrp.lags
+	Ttilde = vrp.NumObs - vrp.lags
 	LL = log(det(vrp.SigmaU))
 	AIC =  LL + 2*pK2/Ttilde
 	SBIC = LL + pK2*log(Ttilde)/Ttilde
@@ -157,7 +162,7 @@ function VarSoc(vrp::VarReg)
 end
 
 function VarOptLags( X::Matrix{Float64} , Pmax::Int64, consterm::Bool=true)
-	soc = Array(Float64,Pmax,3)
+	soc = Array{Float64}(undef,Pmax,3)
 	for q in 1:Pmax
 		soc[q,:] = VarSoc(VarReg(X, q, consterm))
 	end
@@ -171,16 +176,16 @@ function VarOptLags( X::Matrix{Float64} , Pmax::Int64, consterm::Bool=true)
 	println("-----------------------------------\n")
 	println("\t** Optimal Lag Length **\n")
 	println("-----------------------------------\n")
-	show(CoefTable(MinCrit', ColNames, CritRowNames))
+	show(StatsBase.CoefTable(MinCrit, ColNames, CritRowNames))
 	println("-----------------------------------\n")	
-	show(CoefTable(soc, ColNames, RowNames))
-	return MinCrit'
+	show(StatsBase.CoefTable(soc, ColNames, RowNames))
+	return MinCrit
 end
 
 function VarOptLags(X::DataFrame, Pmax::Int64,  eqvars::Vector{Symbol}, consterm::Bool=true)
-	soc = Array{Float64}(Pmax,3)
+	soc = Array{Float64}(undef, Pmax,3)
 	for q in 1:Pmax
-		soc[q,:] = VarSoc(VarReg(X, q, consterm, eqvars))
+		soc[q,:] = VarSoc(VarReg(X, q, eqvars, consterm))
 	end
 	MinCrit = zeros(Float64,3)
 	for j in 1:3
@@ -192,10 +197,10 @@ function VarOptLags(X::DataFrame, Pmax::Int64,  eqvars::Vector{Symbol}, consterm
 	println("-----------------------------------\n")
 	println("\t** Optimal Lag Length **\n")
 	println("-----------------------------------\n")
-	show(CoefTable(MinCrit', ColNames, CritRowNames))
+	show(StatsBase.CoefTable(MinCrit, ColNames, CritRowNames))
 	println("-----------------------------------\n")	
-	show(CoefTable(soc, ColNames, RowNames))
-	return MinCrit'
+	show(StatsBase.CoefTable(soc, ColNames, RowNames))
+	return MinCrit
 end
 
 

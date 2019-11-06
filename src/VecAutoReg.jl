@@ -1,6 +1,7 @@
 module VecAutoReg
 
-using DataFrames, GLM, Distributions
+using DataFrames, GLM, Distributions, StatsBase
+using LinearAlgebra
 import Base.show
 
 include("varest.jl")
