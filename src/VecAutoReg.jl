@@ -12,4 +12,5 @@ export 	readtable,	# Export this Data Frames Command to be able to load in data 
 		VarSoc,		# To directly call stats table
 		VarOptLags, # Optimal Number of Lags Scored on AIC, BIC, HQIC
 		VarFcast 	# Forecast 1 period ahead.
+		GetSS_A		# Get State Space Matrix
 end

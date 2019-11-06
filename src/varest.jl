@@ -120,8 +120,25 @@ function VarOutput( vrp :: VarReg)
 	end
 end
 
+function GetSS_A(vrp::VarReg)
+	if vrp.consterm
+		return [vrp.Bhat[2:end,:]'; [Matrix(1.0I, vrp.N*(vrp.lags-1), vrp.N*(vrp.lags-1)) zeros(vrp.N*(vrp.lags-1),vrp.N)]]
+	else 
+		return [vrp.Bhat'; [Matrix(1.0I, vrp.N*(vrp.lags-1), vrp.N*(vrp.lags-1)) zeros(vrp.N*(vrp.lags-1),vrp.N)]]
+	end 
+end
+
+function Stable(vrp::VarReg)
+	A = GetSS_A(vrp)
+	MaxModEigVal = abs.(eigvals(A))[1];
+	EigOut = round.(MaxModEigVal,digits=4)
+	<(MaxModEigVal,1.0) ?
+		println("Max Eigenvalue is $EigOut < 1. VAR stabiliity condition is met." ) :
+		println("Max Eigenvalue is $EigOut > 1. VAR stabiliity condition is not met.")
+end
+
 function VarStable(vrp::VarReg)
-	A = [vrp.Bhat[2:end,:]'; [eye(vrp.N*(vrp.lags-1)) zeros(vrp.N*(vrp.lags-1),vrp.N)]]
+	A = GetSS_A(vrp)
 	MaxModEigVal = abs.(eigvals(A))[1];
 	EigOut = round.(MaxModEigVal,digits=4)
 	<(MaxModEigVal,1.0) ?
