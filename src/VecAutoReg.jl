@@ -1,6 +1,6 @@
 module VecAutoReg
 
-using DataFrames, GLM, Distributions, StatsBase
+using DataFrames, Distributions, StatsBase
 using LinearAlgebra
 import Base.show
 

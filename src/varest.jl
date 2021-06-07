@@ -122,7 +122,11 @@ end
 
 function VarStable(vrp::VarReg)
 	m = vrp.N*(vrp.lags-1)
-	A = [vrp.Bhat[2:end,:]'; [Matrix(1.0I, m, m) zeros(m,vrp.N)]]
+	if vrp.consterm
+		A = [vrp.Bhat[2:end,:]'; [Matrix(1.0I, m, m) zeros(m,vrp.N)]]
+	else 
+		A = [vrp.Bhat'; [Matrix(1.0I, m, m) zeros(m,vrp.N)]]
+	end
 	MaxModEigVal = abs.(eigvals(A))[1];
 	EigOut = round.(MaxModEigVal,digits=4)
 	<(MaxModEigVal,1.0) ?
