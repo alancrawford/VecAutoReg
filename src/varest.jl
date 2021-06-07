@@ -120,13 +120,16 @@ function VarOutput( vrp :: VarReg)
 	end
 end
 
-function VarStable(vrp::VarReg)
-	m = vrp.N*(vrp.lags-1)
+function GetSS_A(vrp::VarReg)
 	if vrp.consterm
-		A = [vrp.Bhat[2:end,:]'; [Matrix(1.0I, m, m) zeros(m,vrp.N)]]
+		return [vrp.Bhat[2:end,:]'; [Matrix(1.0I, vrp.N*(vrp.lags-1), vrp.N*(vrp.lags-1)) zeros(vrp.N*(vrp.lags-1),vrp.N)]]
 	else 
-		A = [vrp.Bhat'; [Matrix(1.0I, m, m) zeros(m,vrp.N)]]
-	end
+		return [vrp.Bhat'; [Matrix(1.0I, vrp.N*(vrp.lags-1), vrp.N*(vrp.lags-1)) zeros(vrp.N*(vrp.lags-1),vrp.N)]]
+	end 
+end
+
+function Stable(vrp::VarReg)
+	A = GetSS_A(vrp)
 	MaxModEigVal = abs.(eigvals(A))[1];
 	EigOut = round.(MaxModEigVal,digits=4)
 	<(MaxModEigVal,1.0) ?
