@@ -45,26 +45,21 @@ function VarReg(X::Matrix{Float64}, p::Int64, consterm::Bool=true; varname::Stri
 	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se)
 end
 
-
-function VarReg(df::DataFrame, p::Int64,  eqvars::Vector{Symbol}, consterm::Bool=true)
+function VarReg(df::DataFrame, p::Int64,  eqvars::Vector, consterm::Bool=true)
 	#= Setup =#
-	X = df[:,eqvars]
+	X = df[!,eqvars]
 	(T,N) = size(X)
 	consterm ? 
 		@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
 		@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
-	ctr = 1
 	Y = Array{Float64}(undef,T-p,N)
-	for i in 1:N
-		Y[:,ctr] = X[eqvars[ctr]][p+1:end]
-		ctr +=1
+	for (ctr, var) in enumerate(eqvars)
+		Y[:,ctr] = X[p+1:end, var] 
 	end
 	Z = [ones(T-p) zeros(T-p,N*p)]
-	ctr = 1
 	for q = 1:p
-		for i in 1:length(eqvars)
-			ctr += 1
-			Z[:,ctr] = X[eqvars[i]][p-q+1:end-q] 
+		for (ctr, var) in enumerate(eqvars)
+			Z[:,ctr] = X[p-q+1:end-q, var]
 		end
 	end
 	if !consterm 
@@ -128,7 +123,7 @@ function GetSS_A(vrp::VarReg)
 	end 
 end
 
-function Stable(vrp::VarReg)
+function VarStable(vrp::VarReg)
 	A = GetSS_A(vrp)
 	MaxModEigVal = abs.(eigvals(A))[1];
 	EigOut = round.(MaxModEigVal,digits=4)
@@ -189,6 +184,26 @@ function VarOptLags(X::DataFrame, Pmax::Int64,  eqvars::Vector{Symbol}, consterm
 	return MinCrit
 end
 
+function VarOptLags(X::DataFrame, Pmax::Int64,  eqvars::Vector{String}, consterm::Bool=true)
+	soc = Array{Float64}(undef, Pmax,3)
+	for q in 1:Pmax
+		soc[q,:] = VarSoc(VarReg(X, q, eqvars, consterm))
+	end
+	MinCrit = zeros(Float64,3)
+	for j in 1:3
+		 (),MinCrit[j]  = findmin(soc[:,j])
+	end
+	ColNames = ["  AIC ","  SBIC "," HQIC "];
+	RowNames  = ["lag = $i" for i in 1:Pmax];
+	CritRowNames = ["Opt. Lags"]
+	println("-----------------------------------\n")
+	println("\t** Optimal Lag Length **\n")
+	println("-----------------------------------\n")
+	show(StatsBase.CoefTable(MinCrit, ColNames, CritRowNames))
+	println("-----------------------------------\n")	
+	show(StatsBase.CoefTable(soc, ColNames, RowNames))
+	return MinCrit
+end
 
 function VarFcast(vrp::VarReg, X::Array{Float64,1})
 	T, N = size(X)
