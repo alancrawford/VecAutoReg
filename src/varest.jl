@@ -47,20 +47,21 @@ end
 
 function VarReg(df::DataFrame, p::Int64,  eqvars::Vector, consterm::Bool=true)
 	#= Setup =#
-	X = df[!,eqvars]
-	(T,N) = size(X)
+	dfX = convert(Matrix,df[!,eqvars])
+	(Tx,N) = size(dfX)
+	MissIdx = findall(.!ismissing.(dfX))
+	T = Int(length(MissIdx)./N)
+	X = convert.(Float64, reshape(dfX[MissIdx], T, N))
 	consterm ? 
 		@assert(T*N > p*N*N, "Not enough data points to estimate $p lags") :
 		@assert(T*N > p*N*(N+1), "Not enough data points to estimate $p lags")
 	Y = Array{Float64}(undef,T-p,N)
 	for (ctr, var) in enumerate(eqvars)
-		Y[:,ctr] = X[p+1:end, var] 
+		Y[:,ctr] = X[p+1:end, ctr] 
 	end
 	Z = [ones(T-p) zeros(T-p,N*p)]
 	for q = 1:p
-		for (ctr, var) in enumerate(eqvars)
-			Z[:,ctr] = X[p-q+1:end-q, var]
-		end
+		Z[:,N*(q-1)+2:N*q+1] = X[p-q+1:end-q,:] 
 	end
 	if !consterm 
 		Z = Z[:,2:end]  # Omit column of ones if constant is false
@@ -73,12 +74,14 @@ function VarReg(df::DataFrame, p::Int64,  eqvars::Vector, consterm::Bool=true)
 	SigmaU = Uhat'*Uhat/Ttilde
 	G = Z'*Z/Ttilde
 	CovBhat = kron(invZZ,SigmaU)
-	se = consterm ? 
-		convert(Matrix,transpose(reshape(sqrt.(diag(CovBhat)),N,N*p+1))) : 
-		convert(Matrix,transpose(reshape(sqrt.(diag(CovBhat)),N,N*p)))
+	se = consterm ? convert(Matrix,transpose(reshape(sqrt.(diag(CovBhat)),N,N*p+1))) : convert(Matrix,transpose(reshape(sqrt.(diag(CovBhat)),N,N*p)))
+
+	# Because no Data Frame create series names
+	eqnames = isa.(eqvars[1], String) ? 
+ 		[Symbol(varname*"$i") for (i, varname) in enumerate(eqvars)] : eqvars
 	err_dist = MvNormal(zeros(N),SigmaU)
 
-	return VarReg(T, N, p, X, eqvars , consterm, Bhat, SigmaU, CovBhat, se)
+	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se)
 end
 
 function show(io::IO, vrp::VarReg)
