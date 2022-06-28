@@ -125,7 +125,7 @@ end
 
 function VarStable(vrp::VarReg)
 	A = GetSS_A(vrp)
-	MaxModEigVal = abs.(eigvals(A))[1];
+	MaxModEigVal = maximum(abs.(eigvals(A)));
 	EigOut = round.(MaxModEigVal,digits=4)
 	<(MaxModEigVal,1.0) ?
 		println("Max Eigenvalue is $EigOut < 1. VAR stabiliity condition is met." ) :
