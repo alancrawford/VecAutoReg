@@ -40,7 +40,7 @@ function VarReg(X::Matrix{Float64}, p::Int64, consterm::Bool=true; varname::Stri
 
 	# Because no Data Frame create series names
 	eqnames = [Symbol(varname*"$i") for i in 1:N]
-	err_dist = MvNormal(zeros(N),SigmaU)
+	#err_dist = MvNormal(zeros(N),SigmaU)
 	
 	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se)
 end
@@ -79,7 +79,7 @@ function VarReg(df::DataFrame, p::Int64,  eqvars::Vector, consterm::Bool=true)
 	# Because no Data Frame create series names
 	eqnames = isa.(eqvars[1], String) ? 
  		[Symbol(varname*"$i") for (i, varname) in enumerate(eqvars)] : eqvars
-	err_dist = MvNormal(zeros(N),SigmaU)
+	#err_dist = MvNormal(zeros(N),SigmaU)
 
 	return VarReg(T, N, p, X, eqnames , consterm, Bhat, SigmaU, CovBhat, se)
 end
